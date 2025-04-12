@@ -83,6 +83,10 @@ public class Rope implements Comparable<Rope> {
     return root.numCodePoints();
   }
 
+  public int numBytes() {
+    return root.numBytes();
+  }
+
   /**
    * @return a rope without the code points within {@code [start, end)}
    * @throws IllegalArgumentException if {@code start} or {@code end} are not within {@code [0, size) }
@@ -199,6 +203,14 @@ public class Rope implements Comparable<Rope> {
     }
 
     return new Rope(root.slice(start, end, new Object()), isLinear());
+  }
+
+  public Rope sliceBytes(int start, int end) {
+    if (end < start || start < 0 || end > numBytes()) {
+      throw new IllegalArgumentException("[" + start + ", " + end + ") is not a valid range");
+    }
+
+    return new Rope(root.sliceBytes(start, end, new Object()), isLinear());
   }
 
   public boolean isLinear() {

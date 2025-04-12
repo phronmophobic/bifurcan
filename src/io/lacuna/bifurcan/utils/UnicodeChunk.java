@@ -168,6 +168,41 @@ public class UnicodeChunk {
     return newChunk;
   }
 
+  public static byte[] sliceBytes(byte[] chunk, int start, int end) {
+
+    if (start == end) {
+      return EMPTY;
+    } else if (start == 0 && end == (chunk.length - 2)) {
+      return chunk;
+    }
+
+    int codeUnits = 0;
+    int startOffset = start + 2;
+    int endOffset = end + 2;
+    if (isAscii(chunk)) {
+      codeUnits = end - start;
+    } else {
+	for (int offset = startOffset; offset < endOffset ; ) {
+	    byte b = chunk[offset];
+	    if (b >= 0) {
+		codeUnits++;
+		offset++;
+	    } else {
+		int len = prefixLength(b);
+		codeUnits += ( 1 << (len >> 2) );
+		offset += len;
+	    }
+	}
+    }
+
+    byte[] newChunk = new byte[(end - start) + 2];
+    arraycopy(chunk, startOffset, newChunk, 2, newChunk.length - 2);
+    newChunk[0] = (byte) (end - start);
+    newChunk[1] = (byte) codeUnits;
+
+    return newChunk;
+  }
+
   public static char nthUnit(byte[] chunk, int idx) {
     if (isAscii(chunk)) {
       return (char) chunk[idx + 2];
@@ -186,6 +221,10 @@ public class UnicodeChunk {
 
   public static int numCodeUnits(byte[] chunk) {
     return chunk[1] & 0xFF;
+  }
+
+  public static int numBytes(byte[] chunk) {
+      return chunk.length - 2;
   }
 
   public static OfInt codePointIterator(byte[] chunk) {

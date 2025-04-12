@@ -25,6 +25,14 @@ public class RopeNodes {
     }
   }
 
+  public static Object sliceBytes(Object chunk, int start, int end, Object editor) {
+    if (chunk instanceof byte[]) {
+      return UnicodeChunk.sliceBytes((byte[]) chunk, start, end);
+    } else {
+      return ((Node) chunk).sliceBytes(start, end, editor);
+    }
+  }
+
   public static int numCodeUnits(Object node) {
     if (node instanceof byte[]) {
       return UnicodeChunk.numCodeUnits((byte[]) node);
@@ -41,6 +49,14 @@ public class RopeNodes {
     }
   }
 
+  public static int numBytes(Object node) {
+    if (node instanceof byte[]) {
+      return UnicodeChunk.numBytes((byte[]) node);
+    } else {
+      return ((Node) node).numBytes();
+    }
+  }
+
   public static Node pushLast(Node a, Object b, Object editor) {
     if (b instanceof byte[]) {
       return a.pushLast((byte[]) b, editor);
@@ -54,6 +70,7 @@ public class RopeNodes {
     public byte shift;
     public int[] unitOffsets;
     public int[] pointOffsets;
+    public int[] byteOffsets;
     public Object[] nodes;
     public int numNodes;
     public final Object editor;
@@ -64,6 +81,7 @@ public class RopeNodes {
       this.shift = (byte) shift;
       this.unitOffsets = new int[2];
       this.pointOffsets = new int[2];
+      this.byteOffsets = new int[2];
       this.nodes = new Object[2];
       this.numNodes = 0;
       this.editor = editor;
@@ -155,6 +173,10 @@ public class RopeNodes {
       return numNodes == 0 ? 0 : pointOffsets[numNodes - 1];
     }
 
+    public int numBytes() {
+      return numNodes == 0 ? 0 : byteOffsets[numNodes - 1];
+    }
+
     // update
 
     public Node update(int offset, int idx, Object editor, ChunkUpdater updater) {
@@ -173,6 +195,7 @@ public class RopeNodes {
       Object child = nodes[nodeIdx];
       int numUnits = RopeNodes.numCodeUnits(child);
       int numPoints = RopeNodes.numCodePoints(child);
+      int numBytes = RopeNodes.numBytes(child);
 
       Object newChild = shift == SHIFT_INCREMENT
           ? updater.update(offset + nodeOffset, (byte[]) child)
@@ -184,6 +207,7 @@ public class RopeNodes {
 
       int deltaUnits = RopeNodes.numCodeUnits(newChild) - numUnits;
       int deltaPoints = RopeNodes.numCodePoints(newChild) - numPoints;
+      int deltaBytes = RopeNodes.numBytes(newChild) - numBytes;
 
       Node node = editor == this.editor ? this : clone(editor);
       node.nodes[nodeIdx] = newChild;
@@ -191,6 +215,7 @@ public class RopeNodes {
       for (int i = nodeIdx; i < numNodes; i++) {
         node.unitOffsets[i] += deltaUnits;
         node.pointOffsets[i] += deltaPoints;
+	node.byteOffsets[i] += deltaBytes;
       }
 
       return node;
@@ -267,6 +292,56 @@ public class RopeNodes {
       }
     }
 
+    public Node sliceBytes(int start, int end, Object editor) {
+
+      if (start == end) {
+        return new Node(editor, SHIFT_INCREMENT);
+      } else if (start == 0 && end == numBytes()) {
+        return this;
+      }
+
+      int startIdx = indexFor(start, byteOffsets);
+      int endIdx = indexFor(end - 1, byteOffsets);
+
+      System.out.println("start end : " + startIdx + " " + endIdx);
+
+      // we're slicing within a single node
+      if (startIdx == endIdx) {
+        int offset = offsetFor(startIdx, byteOffsets);
+        System.out.println("bytes : " + (start - offset) + "," + ( end - offset));
+        Object child = RopeNodes.sliceBytes(nodes[startIdx], start - offset, end - offset, editor);
+        if (shift > SHIFT_INCREMENT) {
+          return (Node) child;
+        } else {
+          return from(editor, (byte[]) child);
+        }
+
+        // we're slicing across multiple nodes
+      } else {
+
+        Node newNode = new Node(editor, SHIFT_INCREMENT);
+
+        // first partial node
+        int sLower = offsetFor(startIdx, byteOffsets);
+        int sUpper = offsetFor(startIdx + 1, byteOffsets);
+        newNode = RopeNodes.pushLast(
+            newNode,
+            RopeNodes.sliceBytes(nodes[startIdx], start - sLower, sUpper - sLower, editor),
+            editor
+        );
+
+        // intermediate full nodes
+        for (int i = startIdx + 1; i < endIdx; i++) {
+          newNode = RopeNodes.pushLast(newNode, nodes[i], editor);
+        }
+
+        // last partial node
+        int eLower = offsetFor(endIdx, byteOffsets);
+        return RopeNodes.pushLast(newNode, RopeNodes.sliceBytes(nodes[endIdx], 0, end - eLower, editor), editor);
+      }
+    }
+
+
     ///
 
     public Node pushLast(byte[] chunk, Object editor) {
@@ -297,6 +372,7 @@ public class RopeNodes {
 
       int numCodePoints = UnicodeChunk.numCodePoints(chunk);
       int numCodeUnits = UnicodeChunk.numCodeUnits(chunk);
+      int numBytes = UnicodeChunk.numBytes(chunk);
 
       Node parent = stack[stack.length - 1];
       if (parent.nodes.length == parent.numNodes) {
@@ -304,6 +380,7 @@ public class RopeNodes {
       }
       parent.unitOffsets[parent.numNodes] = parent.numCodeUnits();
       parent.pointOffsets[parent.numNodes] = parent.numCodePoints();
+      parent.byteOffsets[parent.numNodes] = parent.numBytes();
       parent.numNodes++;
 
       for (int i = 0; i < stack.length; i++) {
@@ -312,6 +389,8 @@ public class RopeNodes {
         n.nodes[lastIdx] = i == stack.length - 1 ? chunk : stack[i + 1];
         n.unitOffsets[lastIdx] += numCodeUnits;
         n.pointOffsets[lastIdx] += numCodePoints;
+        n.byteOffsets[lastIdx] += numBytes;
+
       }
 
       return stack[0];
@@ -357,6 +436,7 @@ public class RopeNodes {
 
       int numCodePoints = node.numCodePoints();
       int numCodeUnits = node.numCodeUnits();
+      int numBytes = node.numBytes();
 
       for (int i = 0; i < stack.length; i++) {
         Node n = stack[i];
@@ -364,6 +444,7 @@ public class RopeNodes {
         n.nodes[lastIdx] = i == stack.length - 1 ? node : stack[i + 1];
         n.unitOffsets[lastIdx] += numCodeUnits;
         n.pointOffsets[lastIdx] += numCodePoints;
+	n.byteOffsets[lastIdx] += numBytes;
       }
 
       return stack[0];
@@ -412,6 +493,7 @@ public class RopeNodes {
 
       int numCodePoints = node.numCodePoints();
       int numCodeUnits = node.numCodeUnits();
+      int numBytes = node.numBytes();
 
       for (int i = 0; i < stack.length; i++) {
         Node n = stack[i];
@@ -419,6 +501,7 @@ public class RopeNodes {
         for (int j = 0; j < n.numNodes; j++) {
           n.unitOffsets[j] += numCodeUnits;
           n.pointOffsets[j] += numCodePoints;
+          n.byteOffsets[j] += numBytes;
         }
       }
 
@@ -429,15 +512,18 @@ public class RopeNodes {
       len = Math.min(MAX_BRANCHES, len);
       int[] newUnitOffsets = new int[len];
       int[] newPointOffsets = new int[len];
+      int[] newByteOffsets = new int[len];
       Object[] newNodes = new Object[len];
 
       arraycopy(unitOffsets, 0, newUnitOffsets, 0, numNodes);
       arraycopy(pointOffsets, 0, newPointOffsets, 0, numNodes);
+      arraycopy(byteOffsets, 0, newByteOffsets, 0, numNodes);
       arraycopy(nodes, 0, newNodes, 0, numNodes);
 
       nodes = newNodes;
       unitOffsets = newUnitOffsets;
       pointOffsets = newPointOffsets;
+      byteOffsets = newByteOffsets;
     }
 
     public Node clone(Object editor) {
@@ -447,6 +533,7 @@ public class RopeNodes {
       n.numNodes = numNodes;
       n.unitOffsets = unitOffsets.clone();
       n.pointOffsets = pointOffsets.clone();
+      n.byteOffsets = byteOffsets.clone();
       n.nodes = nodes.clone();
 
       return n;
