@@ -303,12 +303,9 @@ public class RopeNodes {
       int startIdx = indexFor(start, byteOffsets);
       int endIdx = indexFor(end - 1, byteOffsets);
 
-      System.out.println("start end : " + startIdx + " " + endIdx);
-
       // we're slicing within a single node
       if (startIdx == endIdx) {
         int offset = offsetFor(startIdx, byteOffsets);
-        System.out.println("bytes : " + (start - offset) + "," + ( end - offset));
         Object child = RopeNodes.sliceBytes(nodes[startIdx], start - offset, end - offset, editor);
         if (shift > SHIFT_INCREMENT) {
           return (Node) child;
