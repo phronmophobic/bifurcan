@@ -429,6 +429,7 @@ public class RopeNodes {
       }
       parent.unitOffsets[parent.numNodes] = parent.numCodeUnits();
       parent.pointOffsets[parent.numNodes] = parent.numCodePoints();
+      parent.byteOffsets[parent.numNodes] = parent.numBytes();
       parent.numNodes++;
 
       int numCodePoints = node.numCodePoints();
@@ -484,9 +485,11 @@ public class RopeNodes {
       arraycopy(parent.nodes, 0, parent.nodes, 1, parent.numNodes);
       arraycopy(parent.unitOffsets, 0, parent.unitOffsets, 1, parent.numNodes);
       arraycopy(parent.pointOffsets, 0, parent.pointOffsets, 1, parent.numNodes);
+      arraycopy(parent.byteOffsets, 0, parent.byteOffsets, 1, parent.numNodes);
       parent.numNodes++;
       parent.unitOffsets[0] = 0;
       parent.pointOffsets[0] = 0;
+      parent.byteOffsets[0] = 0;
 
       int numCodePoints = node.numCodePoints();
       int numCodeUnits = node.numCodeUnits();
