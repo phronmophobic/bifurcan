@@ -177,27 +177,31 @@ public class UnicodeChunk {
     }
 
     int codeUnits = 0;
+    int numCodePoints = 0;
     int startOffset = start + 2;
     int endOffset = end + 2;
     if (isAscii(chunk)) {
       codeUnits = end - start;
+      numCodePoints = codeUnits;
     } else {
 	for (int offset = startOffset; offset < endOffset ; ) {
 	    byte b = chunk[offset];
 	    if (b >= 0) {
 		codeUnits++;
 		offset++;
+		numCodePoints++;
 	    } else {
 		int len = prefixLength(b);
 		codeUnits += ( 1 << (len >> 2) );
 		offset += len;
+		numCodePoints++;
 	    }
 	}
     }
 
     byte[] newChunk = new byte[(end - start) + 2];
     arraycopy(chunk, startOffset, newChunk, 2, newChunk.length - 2);
-    newChunk[0] = (byte) (end - start);
+    newChunk[0] = (byte) numCodePoints;
     newChunk[1] = (byte) codeUnits;
 
     return newChunk;
