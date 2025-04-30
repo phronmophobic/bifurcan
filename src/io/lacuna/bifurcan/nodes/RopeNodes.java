@@ -106,7 +106,20 @@ public class RopeNodes {
     // lookup
 
     private int indexFor(int idx, int[] offsets) {
-      int estimate = shift > 30 ? 0 : (idx >> shift) & (MAX_BRANCHES - 1);
+	int estimate = shift > 30 ? 0 : (idx >> shift) & (MAX_BRANCHES - 1);
+      for (int i = estimate; i < numNodes; i++) {
+        if (idx < offsets[i]) {
+          return i;
+        }
+      }
+      throw new IndexOutOfBoundsException(idx + " is not within [0," + offsetFor(numNodes, offsets) + ")");
+    }
+
+
+    private int indexForBytes(int idx, int[] offsets) {
+	// estimate for bytes is 2x less than code units
+	// otherwise, index may be wrong.
+	int estimate = shift > 30 ? 0 : (idx >> (shift + 1) ) & (MAX_BRANCHES - 1);
       for (int i = estimate; i < numNodes; i++) {
         if (idx < offsets[i]) {
           return i;
@@ -300,8 +313,8 @@ public class RopeNodes {
         return this;
       }
 
-      int startIdx = indexFor(start, byteOffsets);
-      int endIdx = indexFor(end - 1, byteOffsets);
+      int startIdx = indexForBytes(start, byteOffsets);
+      int endIdx = indexForBytes(end - 1, byteOffsets);
 
       // we're slicing within a single node
       if (startIdx == endIdx) {
