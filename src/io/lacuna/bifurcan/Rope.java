@@ -24,7 +24,7 @@ import static java.lang.Character.isHighSurrogate;
  *
  * @author ztellman
  */
-public class Rope implements Comparable<Rope> {
+public class Rope implements Comparable<Rope>, CharSequence {
 
   public static final Rope EMPTY = Rope.from("");
 
@@ -242,9 +242,9 @@ public class Rope implements Comparable<Rope> {
   /**
    * @return a sequence of integers representing the UTF-16 code units from front to back
    */
-  public PrimitiveIterator.OfInt chars() {
-    return IntIterators.flatMap(chunks(), UnicodeChunk::codeUnitIterator);
-  }
+  // public PrimitiveIterator.OfInt chars() {
+  //   return IntIterators.flatMap(chunks(), UnicodeChunk::codeUnitIterator);
+  // }
 
   /**
    * @return a sequence of integers representing the code points from back to front
@@ -256,9 +256,9 @@ public class Rope implements Comparable<Rope> {
   /**
    * @return a sequence of integers representing the code points from front to back
    */
-  public PrimitiveIterator.OfInt codePoints() {
-    return IntIterators.flatMap(chunks(), UnicodeChunk::codePointIterator);
-  }
+  // public PrimitiveIterator.OfInt codePoints() {
+  //   return IntIterators.flatMap(chunks(), UnicodeChunk::codePointIterator);
+  // }
 
   /**
    * @return a corresponding Java-style {@code String} in {@code O(N)} time
@@ -274,6 +274,32 @@ public class Rope implements Comparable<Rope> {
 
     return new String(cs);
   }
+
+      @Override
+      public int length() {
+        return root.numCodeUnits();
+      }
+
+      @Override
+      public char charAt(int index) {
+        return root.nthUnit(index);
+      }
+
+      @Override
+      public CharSequence subSequence(int start, int end) {
+	  return CharSequences.subSequence(this, start, end);
+      }
+
+      @Override
+      public IntStream chars() {
+        return IntIterators.toStream(IntIterators.flatMap(chunks(), UnicodeChunk::codeUnitIterator), root.numCodeUnits());
+      }
+
+      @Override
+      public IntStream codePoints() {
+        return IntIterators.toStream(IntIterators.flatMap(chunks(), UnicodeChunk::codePointIterator), root.numCodePoints());
+      }
+
 
   /**
    * @return a corresponding Java-style {@link CharSequence} in {@code O(1)} time
@@ -297,12 +323,14 @@ public class Rope implements Comparable<Rope> {
 
       @Override
       public IntStream chars() {
-        return IntIterators.toStream(Rope.this.chars(), root.numCodeUnits());
+	  return Rope.this.chars();
+	  //return IntIterators.toStream(Rope.this.chars(), root.numCodeUnits());
       }
 
       @Override
       public IntStream codePoints() {
-        return IntIterators.toStream(Rope.this.codePoints(), root.numCodePoints());
+	  return Rope.this.codePoints();
+        // return IntIterators.toStream(Rope.this.codePoints(), root.numCodePoints());
       }
 
       @Override
