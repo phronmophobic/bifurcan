@@ -170,6 +170,49 @@ public class Rope implements Comparable<Rope>, CharSequence {
     }
   }
 
+  private Rope insertAtByte(final int byteIndex, Iterator<byte[]> chunks, int numCodeUnits) {
+
+    if (byteIndex < 0 || byteIndex > numBytes()) {
+      throw new IndexOutOfBoundsException();
+    }
+
+    Object editor = isLinear() ? this.editor : new Object();
+    Node newRoot = null;
+
+    // can we just update a single leaf node?
+    if (numCodeUnits < MAX_CHUNK_CODE_UNITS) {
+      newRoot = root.updateAtByte(0, byteIndex, editor, (offset, chunk) -> {
+        if (numCodeUnits + UnicodeChunk.numCodeUnits(chunk) <= MAX_CHUNK_CODE_UNITS) {
+          byte[] newChunk = UnicodeChunk.sliceBytes(chunk, 0, byteIndex - offset);
+          while (chunks.hasNext()) {
+            newChunk = UnicodeChunk.concat(newChunk, chunks.next());
+          }
+          return UnicodeChunk.concat(
+              newChunk,
+              UnicodeChunk.sliceBytes(chunk, byteIndex - offset, UnicodeChunk.numBytes(chunk))
+          );
+        } else {
+          return null;
+        }
+      });
+    }
+
+    if (newRoot == null) {
+      newRoot = root.sliceBytes(0, byteIndex, editor);
+      while (chunks.hasNext()) {
+        newRoot = newRoot.pushLast(chunks.next(), editor);
+      }
+      newRoot = newRoot.concat(root.sliceBytes(byteIndex, numBytes(), editor), editor);
+    }
+
+    if (isLinear()) {
+      root = newRoot;
+      return this;
+    } else {
+      return new Rope(newRoot, false);
+    }
+  }
+
   /**
    * @return a new rope with {@code rope} inserted after the first {@code idx} code points
    */
@@ -191,6 +234,15 @@ public class Rope implements Comparable<Rope>, CharSequence {
     }
     return insert(index, chunks(cs), cs.length());
   }
+
+  public Rope insertAtByte(int byteIndex, CharSequence cs) {
+    if (cs.length() == 0) {
+      return this;
+    }
+    return insertAtByte(byteIndex, chunks(cs), cs.length());
+  }
+
+
 
   /**
    * @return a new rope representing the code points within {@code [start, end)}

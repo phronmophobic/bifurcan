@@ -234,6 +234,48 @@ public class RopeNodes {
       return node;
     }
 
+    public Node updateAtByte(int offset, int idx, Object editor, ChunkUpdater updater) {
+
+      if (numNodes == 0) {
+        return null;
+      }
+
+      int nodeIdx = numNodes - 1;
+      int nodeOffset = offsetFor(nodeIdx, byteOffsets);
+      if (idx != numBytes()) {
+        nodeIdx = indexForBytes(idx, byteOffsets);
+        nodeOffset = offsetFor(nodeIdx, byteOffsets);
+      }
+
+      Object child = nodes[nodeIdx];
+      int numUnits = RopeNodes.numCodeUnits(child);
+      int numPoints = RopeNodes.numCodePoints(child);
+      int numBytes = RopeNodes.numBytes(child);
+
+      Object newChild = shift == SHIFT_INCREMENT
+          ? updater.update(offset + nodeOffset, (byte[]) child)
+          : ((Node) child).updateAtByte(offset + nodeOffset, idx - nodeOffset, editor, updater);
+
+      if (newChild == null) {
+        return null;
+      }
+
+      int deltaUnits = RopeNodes.numCodeUnits(newChild) - numUnits;
+      int deltaPoints = RopeNodes.numCodePoints(newChild) - numPoints;
+      int deltaBytes = RopeNodes.numBytes(newChild) - numBytes;
+
+      Node node = editor == this.editor ? this : clone(editor);
+      node.nodes[nodeIdx] = newChild;
+
+      for (int i = nodeIdx; i < numNodes; i++) {
+        node.unitOffsets[i] += deltaUnits;
+        node.pointOffsets[i] += deltaPoints;
+	node.byteOffsets[i] += deltaBytes;
+      }
+
+      return node;
+    }
+
     public Node concat(Node node, Object editor) {
 
       if (node.numCodeUnits() == 0) {
