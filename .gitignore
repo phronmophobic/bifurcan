@@ -16,3 +16,4 @@ gen-javadoc.sh
 javadoc
 *.iml
 .java-version
+/.cpcache
