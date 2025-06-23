@@ -119,7 +119,7 @@ public class RopeNodes {
     private int indexForBytes(int idx, int[] offsets) {
 	// estimate for bytes is 2x less than code units
 	// otherwise, index may be wrong.
-	int estimate = shift > 30 ? 0 : (idx >> (shift + 1) ) & (MAX_BRANCHES - 1);
+	int estimate = (shift > 30 || idx == 0) ? 0 : ((idx - 1) >> (shift + 1) ) & (MAX_BRANCHES - 1);
       for (int i = estimate; i < numNodes; i++) {
         if (idx < offsets[i]) {
           return i;
