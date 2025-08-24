@@ -33,6 +33,14 @@ public class RopeNodes {
     }
   }
 
+  public static void copyBytes(Object chunk, int srcPos, byte[] dest, int destPos, int length ){
+    if (chunk instanceof byte[]) {
+      UnicodeChunk.copyBytes((byte[]) chunk, srcPos, dest, destPos, length);
+    } else {
+      ((Node) chunk).copyBytes(srcPos, dest, destPos, length);
+    }
+  }
+
   public static int numCodeUnits(Object node) {
     if (node instanceof byte[]) {
       return UnicodeChunk.numCodeUnits((byte[]) node);
@@ -390,6 +398,44 @@ public class RopeNodes {
         // last partial node
         int eLower = offsetFor(endIdx, byteOffsets);
         return RopeNodes.pushLast(newNode, RopeNodes.sliceBytes(nodes[endIdx], 0, end - eLower, editor), editor);
+      }
+    }
+
+    public void copyBytes(int srcPos, byte[] dest, int destPos, int length ){
+        if ( 0 == length ) return;
+
+        int endPos = srcPos + length;
+
+        int startIdx = indexForBytes(srcPos, byteOffsets);
+        int endIdx = indexForBytes(endPos - 1, byteOffsets);
+
+      // we're slicing within a single node
+      if (startIdx == endIdx) {
+        int offset = offsetFor(startIdx, byteOffsets);
+        RopeNodes.copyBytes(nodes[startIdx], srcPos - offset, dest, destPos, length);
+
+      } else {
+
+        // first partial node
+        int sLower = offsetFor(startIdx, byteOffsets);
+        int sUpper = offsetFor(startIdx + 1, byteOffsets);
+        int sIndex = srcPos - sLower;
+        int len = sUpper - srcPos;
+        RopeNodes.copyBytes(nodes[startIdx], sIndex, dest, destPos, len);
+        destPos += len;
+        
+        // intermediate full nodes
+        for (int i = startIdx + 1; i < endIdx; i++) {
+            Object node = nodes[i];
+            len = RopeNodes.numBytes(node);
+            RopeNodes.copyBytes(nodes[i], 0 , dest, destPos, len);
+            destPos += len;
+        }
+
+        // last partial node
+        int eLower = offsetFor(endIdx, byteOffsets);
+        RopeNodes.copyBytes(nodes[endIdx], 0 , dest, destPos, endPos - eLower);
+
       }
     }
 

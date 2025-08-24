@@ -327,6 +327,11 @@ public class Rope implements Comparable<Rope>, CharSequence {
     return new String(cs);
   }
 
+
+    public void copyBytes(int srcPos, byte[] dest, int destPos, int length ){
+        root.copyBytes(srcPos, dest, destPos, length);
+    }
+
       @Override
       public int length() {
         return root.numCodeUnits();

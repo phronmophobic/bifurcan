@@ -207,6 +207,11 @@ public class UnicodeChunk {
     return newChunk;
   }
 
+  public static void copyBytes(byte[] chunk, int srcPos, byte[] dest, int destPos, int length ){
+    System.arraycopy(chunk, srcPos+2, dest, destPos, length);
+  }
+
+
   public static char nthUnit(byte[] chunk, int idx) {
     if (isAscii(chunk)) {
       return (char) chunk[idx + 2];
